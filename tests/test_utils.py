@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from lm_eval.utils import handle_arg_string, simple_parse_args_string
+from lm_eval.utils import handle_arg_string, simple_parse_args_string, escaped_split
 
 from lm_eval.api.metrics import (
     aggregate_subtask_metrics,
@@ -711,3 +711,30 @@ class TestSimpleParseArgsString:
         result = simple_parse_args_string("trust_remote_code=true,temperature=0.7")
         assert result["trust_remote_code"] is True
         assert result["temperature"] == 0.7
+
+
+class TestEscapedSplit:
+    """Tests for escaped_split. Regression tests for
+    https://github.com/EleutherAI/lm-evaluation-harness/issues/4095"""
+
+    def test_regex_metachar_separators_are_literal(self):
+        assert escaped_split("a.b.c", ".") == ["a", "b", "c"]
+        assert escaped_split("a|b|c", "|") == ["a", "b", "c"]
+        assert escaped_split("a*b*c", "*") == ["a", "b", "c"]
+        assert escaped_split("a+b+c", "+") == ["a", "b", "c"]
+        assert escaped_split("a?b?c", "?") == ["a", "b", "c"]
+
+    def test_maxsplit_zero_returns_single_element_list(self):
+        result = escaped_split("a,b", ",", 0)
+        assert result == ["a,b"]
+        assert isinstance(result, list)
+
+    def test_escaped_separators_are_not_split(self):
+        assert escaped_split(r"a\:b:c", ":") == ["a\\:b", "c"]
+
+    def test_positive_maxsplit_limits_splits(self):
+        assert escaped_split("a,b,c", ",", 1) == ["a", "b,c"]
+
+    def test_colon_delimited_paths_still_work(self):
+        # original use case: colon-delimited arbitrary JSON task paths
+        assert escaped_split("a:b:c", ":") == ["a", "b", "c"]
