@@ -738,3 +738,18 @@ class TestEscapedSplit:
     def test_colon_delimited_paths_still_work(self):
         # original use case: colon-delimited arbitrary JSON task paths
         assert escaped_split("a:b:c", ":") == ["a", "b", "c"]
+
+    def test_boundary_and_consecutive_separators(self):
+        # matches str.split semantics: no special-casing at boundaries
+        assert escaped_split(",a,,b,", ",") == ["", "a", "", "b", ""]
+
+    def test_escaped_separator_at_string_start(self):
+        # backslash-escaped separator at the very start is not split
+        assert escaped_split(r"\:a:b", ":") == ["\\:a", "b"]
+        # escaped regex-metachar separator also stays unsplit
+        assert escaped_split(r"a\.b.c", ".") == ["a\\.b", "c"]
+
+    def test_empty_string_and_trailing_backslash(self):
+        assert escaped_split("", ",") == [""]
+        # dangling backslash with no separator: no split, no crash
+        assert escaped_split("abc\\", ",") == ["abc\\"]
